@@ -1,5 +1,12 @@
 ﻿#include <iostream>
+#include <process.h>
 #include <windows.h>
+
+unsigned __stdcall threadWork(void* data) {
+	std::cout << "That was printed from thread number " << GetCurrentThreadId() << std::endl
+		<< "It`s priority is " << GetThreadPriority(GetCurrentThread()) << std::endl;
+	return 0;
+}
 
 int main(void) {
 	std::cout << "Creating process with CreateProcess() function." << std::endl
@@ -33,7 +40,24 @@ int main(void) {
 	CloseHandle(pi.hProcess);
 	CloseHandle(pi.hThread);
 
-	std::cout << "Process was closed." << std::endl;
+	std::cout << "Process was closed." << std::endl << std::endl;
+	std::cout << "Showing of threads creation." << std::endl << std::endl;
+
+	//Creating 2 threads and setting priority
+	HANDLE firstThread;
+	HANDLE secondThread;
+
+	firstThread = reinterpret_cast<HANDLE>(_beginthreadex(NULL, 0, &threadWork, NULL, 0, NULL));
+
+	secondThread = reinterpret_cast<HANDLE>(_beginthreadex(NULL, 0, &threadWork, NULL, 0, NULL));
+
+	HANDLE handles[2] = { firstThread, secondThread };
+
+	SetThreadPriority(secondThread, THREAD_PRIORITY_HIGHEST);
+
+	WaitForMultipleObjects(2, handles, true, INFINITE);
+	CloseHandle(firstThread);
+	CloseHandle(secondThread);
 
 	return 0;
 }
