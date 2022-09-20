@@ -105,5 +105,9 @@ int main(void) {
 	std::cout << "As you can see threads above used 'cout' resource without race and text will never be messed up." << std::endl
 		<< "But they were not working in strict sequence and that is the disadvantage of mutex." << std::endl << std::endl;
 
+	for (auto thread : threads) {
+		CloseHandle(thread);
+	}
+
 	return 0;
 }
