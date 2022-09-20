@@ -161,6 +161,9 @@ int main(void) {
 	for (auto thread : threads) {
 		CloseHandle(thread);
 	}
+	for (int i = 0; i < 10; i++) {
+		CloseHandle(semaphores[i]);
+	}
 
 	std::cout << std::endl << "As you can see threads had worked in order, that`s because semaphores can be changed in other threads."
 		<< std::endl << "Unlike semaphores mutexes can be released only in thread where they were locked." << std::endl << std::endl;
