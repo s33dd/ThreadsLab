@@ -10,6 +10,12 @@ struct ThreadParams {
 	std::mutex &mutex;
 };
 
+struct ThreadSemaphoreParams {
+	ThreadSemaphoreParams(HANDLE* sem, int number) : semaphores(sem), num(number) {};
+	HANDLE* semaphores;
+	int num;
+};
+
 unsigned __stdcall threadWork(void* data) {
 	std::cout << "That was printed from thread number " << GetCurrentThreadId() << std::endl
 		<< "It`s priority is " << GetThreadPriority(GetCurrentThread()) << std::endl;
@@ -21,6 +27,24 @@ unsigned __stdcall mutexWork(void* data) {
 	int number = params->num;
 	std::scoped_lock lock(params->mutex);
 	std::cout << std::endl << "My number is " << number << std::endl;
+	return 0;
+}
+
+unsigned __stdcall semaphoreWork(void* data) {
+	ThreadSemaphoreParams* params = static_cast<ThreadSemaphoreParams*>(data);
+	int number = params->num;
+	HANDLE currentSemaphore = params->semaphores[number - 1];
+	HANDLE nextSemaphore = params->semaphores[number];
+	DWORD waitResult = WaitForSingleObject(currentSemaphore, 1);
+	while (waitResult != WAIT_OBJECT_0) {
+		waitResult = WaitForSingleObject(currentSemaphore, 1);
+	}
+	std::cout << std::endl << "My number is " << number << std::endl;
+	ReleaseSemaphore(
+		nextSemaphore, //Semaphore handle
+		1, //Amount by which increase
+		NULL //Variable, if need to save previous count (NULL if not)
+	);
 	return 0;
 }
 
@@ -108,6 +132,38 @@ int main(void) {
 	for (auto thread : threads) {
 		CloseHandle(thread);
 	}
+
+	std::cout << "Semaphore" << std::endl << std::endl
+		<< "Semaphores can be used to run threads in strict order. Now i will do the same as previous but will use semaphores." << std::endl;
+
+	HANDLE semaphores[10];
+	for (int i = 0; i < 10; i++) {
+		semaphores[i] = CreateSemaphore( //Creating semaphore
+			NULL, //Inheritance attribute
+			0, //Initial count
+			1, //Max count
+			NULL //Semaphore name
+		);
+	}
+
+	threads.clear();
+
+	for (int i = 0; i < 10; i++) {
+		ThreadSemaphoreParams* params = new ThreadSemaphoreParams(semaphores, i + 1);
+		HANDLE thread = reinterpret_cast<HANDLE>(_beginthreadex(NULL, 0, &semaphoreWork, params, 0, NULL));
+		threads.push_back(thread);
+	}
+
+	ReleaseSemaphore(semaphores[0], 1, NULL);
+
+	WaitForMultipleObjects(threads.size(), threads.data(), true, INFINITE);
+
+	for (auto thread : threads) {
+		CloseHandle(thread);
+	}
+
+	std::cout << std::endl << "As you can see threads had worked in order, that`s because semaphores can be changed in other threads."
+		<< std::endl << "Unlike semaphores mutexes can be released only in thread where they were locked." << std::endl << std::endl;
 
 	return 0;
 }
