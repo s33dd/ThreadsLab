@@ -48,6 +48,17 @@ unsigned __stdcall semaphoreWork(void* data) {
 	return 0;
 }
 
+unsigned __stdcall eventWork(void* data) {
+	HANDLE* eventHandle = static_cast<HANDLE*>(data);
+	std::cout << std::endl << "Thread " << GetCurrentThreadId() << " is waiting for signal" << std::endl;
+	WaitForSingleObject(eventHandle, INFINITE);
+	std::cout << "Thread " << GetCurrentThreadId() << " is starting it`s work" << std::endl;
+	Sleep(2000);
+	std::cout << "Work is done" << std::endl;
+	ResetEvent(eventHandle);
+	return 0;
+}
+
 int main(void) {
 	std::cout << "Creating process with CreateProcess() function." << std::endl
 		<< "Trying to open notepad with changed priority..." << std::endl;
@@ -167,6 +178,31 @@ int main(void) {
 
 	std::cout << std::endl << "As you can see threads had worked in order, that`s because semaphores can be changed in other threads."
 		<< std::endl << "Unlike semaphores mutexes can be released only in thread where they were locked." << std::endl << std::endl;
+
+	std::cout << "Events" << std::endl;
+	std::cout << std::endl << "Events can be used for synchronization too." << std::endl
+		<< "They used when we need to send a signal for thread, that it can use resources." << std::endl << std::endl;
+
+	HANDLE event = CreateEvent(
+		NULL, //Inheritance attribute
+		true, //Is manual reset
+		false, //Initial state
+		NULL //Name of event
+	);
+
+	HANDLE eventThread = reinterpret_cast<HANDLE>(_beginthreadex(NULL, 0, &eventWork, event, 0, NULL));
+
+	std::cout << "Main thread is using the resource right now..." << std::endl;
+
+	Sleep(5000);
+
+	std::cout << std::endl << "Main thread will now free the resource." << std::endl;
+	SetEvent(event);
+
+	WaitForSingleObject(eventThread, INFINITE);
+
+	CloseHandle(eventThread);
+	CloseHandle(event);
 
 	return 0;
 }
