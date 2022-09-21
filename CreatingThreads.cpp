@@ -16,6 +16,12 @@ struct ThreadSemaphoreParams {
 	int num;
 };
 
+struct ThreadCsParams {
+	ThreadCsParams(CRITICAL_SECTION& cs, int number) : criticalSection(cs), num(number) {};
+	CRITICAL_SECTION& criticalSection;
+	int num;
+};
+
 unsigned __stdcall threadWork(void* data) {
 	std::cout << "That was printed from thread number " << GetCurrentThreadId() << std::endl
 		<< "It`s priority is " << GetThreadPriority(GetCurrentThread()) << std::endl;
@@ -82,6 +88,15 @@ unsigned __stdcall timerWork(void* data) {
 	}
 	CancelWaitableTimer(printingTimer);
 	CloseHandle(printingTimer);
+	return 0;
+}
+
+unsigned __stdcall csWork(void* data) {
+	ThreadCsParams* params = static_cast<ThreadCsParams*>(data);
+	int number = params->num;
+	EnterCriticalSection(&params->criticalSection);
+	std::cout << std::endl << "My number is " << number << std::endl;
+	LeaveCriticalSection(&params->criticalSection);
 	return 0;
 }
 
@@ -247,6 +262,28 @@ int main(void) {
 	WaitForSingleObject(timerThread, INFINITE);
 
 	CloseHandle(timerThread);
+
+	std::cout << std::endl << "Critical section" << std::endl << std::endl;
+	std::cout << "Critical section works almost like mutex, so I will create the same example." << std::endl;
+
+	CRITICAL_SECTION criticalSection;
+	InitializeCriticalSection(&criticalSection);
+
+	threads.clear();
+	for (int i = 0; i < 10; i++) {
+		ThreadCsParams* params = new ThreadCsParams(criticalSection, i + 1);
+		HANDLE thread = reinterpret_cast<HANDLE>(_beginthreadex(NULL, 0, &csWork, params, 0, NULL));
+		threads.push_back(thread);
+	}
+
+	WaitForMultipleObjects(threads.size(), threads.data(), true, INFINITE);
+
+	for (auto thread : threads) {
+		CloseHandle(thread);
+	}
+	DeleteCriticalSection(&criticalSection);
+
+	threads.clear();
 
 	return 0;
 }
