@@ -59,6 +59,32 @@ unsigned __stdcall eventWork(void* data) {
 	return 0;
 }
 
+unsigned __stdcall timerWork(void* data) {
+	int* digit = static_cast<int*>(data);
+	HANDLE printingTimer = CreateWaitableTimer(
+		NULL, //Inheritance attribute
+		FALSE, //Is manual reset
+		NULL // Name of timer
+	);
+	LARGE_INTEGER time;
+	time.QuadPart = -5 * 10000000; //set timer for 5 seconds
+	SetWaitableTimer(
+		printingTimer, //Handle of timer
+		&time, //How long to wait in relative 100 nanosecs intervals
+		5000, //Period in milliseconds
+		NULL, //Function to complete when timer is signaled
+		NULL, //Args for function
+		false //Is restore system from sleep mode
+	);
+	for (int i = 0; i < 2; i++) {
+		WaitForSingleObject(printingTimer, INFINITE);
+		std::cout << std::endl << "Current value: " << *digit << std::endl;
+	}
+	CancelWaitableTimer(printingTimer);
+	CloseHandle(printingTimer);
+	return 0;
+}
+
 int main(void) {
 	std::cout << "Creating process with CreateProcess() function." << std::endl
 		<< "Trying to open notepad with changed priority..." << std::endl;
@@ -203,6 +229,24 @@ int main(void) {
 
 	CloseHandle(eventThread);
 	CloseHandle(event);
+
+	std::cout << std::endl << "Waitable timer" << std::endl << std::endl;
+	std::cout << "If we need a thread to work after some time, than we can use waitable timer object." << std::endl << std::endl
+		<< "Now main thread will increment some variable by one one time in a second and another thread will print that number one time in a 5 seconds."
+		<< std::endl;
+
+	int digit = 0;
+
+	HANDLE timerThread = reinterpret_cast<HANDLE>(_beginthreadex(NULL, 0, &timerWork, &digit, 0, NULL));
+
+	for(int i = 0; i < 10; i++) {
+		++digit;
+		Sleep(1000);
+	}
+
+	WaitForSingleObject(timerThread, INFINITE);
+
+	CloseHandle(timerThread);
 
 	return 0;
 }
